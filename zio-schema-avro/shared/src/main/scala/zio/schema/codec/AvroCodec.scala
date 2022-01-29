@@ -1,40 +1,8 @@
-package zio.codec
+package zio.schema.codec
 
 import zio.schema.Schema._
-import zio.schema.StandardType.{
-  BigDecimalType,
-  BigIntegerType,
-  BinaryType,
-  BoolType,
-  CharType,
-  DayOfWeekType,
-  DoubleType,
-  Duration,
-  FloatType,
-  Instant,
-  IntType,
-  LocalDate,
-  LocalDateTime,
-  LocalTime,
-  LongType,
-  Month,
-  MonthDay,
-  OffsetDateTime,
-  OffsetTime,
-  Period,
-  ShortType,
-  StringType,
-  UUIDType,
-  UnitType,
-  Year,
-  YearMonth,
-  ZoneId,
-  ZoneOffset,
-  ZonedDateTime
-}
 import zio.schema._
 import zio.schema.ast.SchemaAst
-import zio.schema.codec.Codec
 import zio.stream.ZTransducer
 import zio.{ Chunk, ZIO }
 
@@ -93,149 +61,159 @@ object AvroCodec extends Codec {
 
     //scalafmt: { maxColumn = 400, optIn.configStyleArguments = false }
     def encode[A](schema: Schema[A], value: A): Chunk[Byte] = schema match {
-      case Sequence(element, _, g) => encodeSequence(element, g(value))
-      case Transform(codec, _, g)  => g(value).map(encode(codec, _)).getOrElse(Chunk.empty)
-      case Primitive(standardType) => encodePrimitive(standardType, value)
-      case Optional(codec) =>
+      case Sequence(element, _, g, _) => encodeSequence(element, g(value))
+      case Schema.MapSchema(ks, vs, _) =>
+        value match { // TODO: tests
+          case map: Map[k, v] => encodeSequence(ks <*> vs, Chunk.fromIterable(map))
+          case _              => Chunk.empty
+        }
+      case Schema.SetSchema(s, _) =>
+        value match { // TODO: tests
+          case set: Set[a] => encode(s, Chunk.fromIterable(set))
+          case _           => Chunk.empty
+        }
+      case Transform(codec, _, g, _)  => g(value).map(encode(codec, _)).getOrElse(Chunk.empty)
+      case Primitive(standardType, _) => encodePrimitive(standardType, value)
+      case Optional(codec, _) =>
         value match {
           case v: Option[_] => encodeOptional(codec, v)
           case _            => Chunk.empty
         }
-      case Tuple(left, right) =>
+      case Tuple(left, right, _) =>
         value match {
           case v @ (_, _) => encodeTuple(left, right, v)
           case _          => Chunk.empty
         }
-      case EitherSchema(left, right) =>
+      case EitherSchema(left, right, _) =>
         value match {
           case v: Either[_, _] => encodeEither(left, right, v)
           case _               => Chunk.empty
         }
       case lzy @ Lazy(_) => encode(lzy.schema, value)
-      case Meta(ast)     => encode(Schema[SchemaAst], ast)
-      case Enum1(c1) =>
+      case Meta(ast, _)  => encode(Schema[SchemaAst], ast)
+      case Enum1(c1, _) =>
         encodeCase(value, c1)
-      case Enum2(c1, c2) =>
+      case Enum2(c1, c2, _) =>
         encodeCase(value, c1, c2)
-      case Enum3(c1, c2, c3) =>
+      case Enum3(c1, c2, c3, _) =>
         encodeCase(value, c1, c2, c3)
-      case Enum4(c1, c2, c3, c4) =>
+      case Enum4(c1, c2, c3, c4, _) =>
         encodeCase(value, c1, c2, c3, c4)
-      case Enum5(c1, c2, c3, c4, c5) =>
+      case Enum5(c1, c2, c3, c4, c5, _) =>
         encodeCase(value, c1, c2, c3, c4, c5)
-      case Enum6(c1, c2, c3, c4, c5, c6) =>
+      case Enum6(c1, c2, c3, c4, c5, c6, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6)
-      case Enum7(c1, c2, c3, c4, c5, c6, c7) =>
+      case Enum7(c1, c2, c3, c4, c5, c6, c7, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7)
-      case Enum8(c1, c2, c3, c4, c5, c6, c7, c8) =>
+      case Enum8(c1, c2, c3, c4, c5, c6, c7, c8, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8)
-      case Enum9(c1, c2, c3, c4, c5, c6, c7, c8, c9) =>
+      case Enum9(c1, c2, c3, c4, c5, c6, c7, c8, c9, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9)
-      case Enum10(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10) =>
+      case Enum10(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10)
-      case Enum11(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11) =>
+      case Enum11(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11)
-      case Enum12(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12) =>
+      case Enum12(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12)
-      case Enum13(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13) =>
+      case Enum13(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13)
-      case Enum14(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14) =>
+      case Enum14(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14)
-      case Enum15(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15) =>
+      case Enum15(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15)
-      case Enum16(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16) =>
+      case Enum16(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16)
-      case Enum17(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17) =>
+      case Enum17(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17)
-      case Enum18(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18) =>
+      case Enum18(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18)
-      case Enum19(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19) =>
+      case Enum19(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19)
-      case Enum20(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20) =>
+      case Enum20(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20)
-      case Enum21(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21) =>
+      case Enum21(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21)
-      case Enum22(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22) =>
+      case Enum22(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, _) =>
         encodeCase(value, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22)
-      case EnumN(caseSet) => encodeCase(value, caseSet.toSeq: _*)
-      case CaseClass1(_, f1, _, ext1) =>
+      case EnumN(caseSet, _) => encodeCase(value, caseSet.toSeq: _*)
+      case CaseClass1(f1, _, ext1, _) =>
         encodeCaseClass(value, f1 -> ext1)
-      case CaseClass2(_, f1, f2, _, ext1, ext2) =>
+      case CaseClass2(f1, f2, _, ext1, ext2, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2)
-      case CaseClass3(_, f1, f2, f3, _, ext1, ext2, ext3) =>
+      case CaseClass3(f1, f2, f3, _, ext1, ext2, ext3, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3)
-      case CaseClass4(_, f1, f2, f3, f4, _, ext1, ext2, ext3, ext4) =>
+      case CaseClass4(f1, f2, f3, f4, _, ext1, ext2, ext3, ext4, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4)
-      case CaseClass5(_, f1, f2, f3, f4, f5, _, ext1, ext2, ext3, ext4, ext5) =>
+      case CaseClass5(f1, f2, f3, f4, f5, _, ext1, ext2, ext3, ext4, ext5, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5)
-      case CaseClass6(_, f1, f2, f3, f4, f5, f6, _, ext1, ext2, ext3, ext4, ext5, ext6) =>
+      case CaseClass6(f1, f2, f3, f4, f5, f6, _, ext1, ext2, ext3, ext4, ext5, ext6, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6)
-      case CaseClass7(_, f1, f2, f3, f4, f5, f6, f7, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7) =>
+      case CaseClass7(f1, f2, f3, f4, f5, f6, f7, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7)
-      case CaseClass8(_, f1, f2, f3, f4, f5, f6, f7, f8, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8) =>
+      case CaseClass8(f1, f2, f3, f4, f5, f6, f7, f8, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8)
-      case CaseClass9(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9) =>
+      case CaseClass9(f1, f2, f3, f4, f5, f6, f7, f8, f9, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9)
-      case CaseClass10(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10) =>
+      case CaseClass10(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10)
-      case CaseClass11(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11) =>
+      case CaseClass11(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11)
-      case CaseClass12(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12) =>
+      case CaseClass12(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12)
-      case CaseClass13(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13) =>
+      case CaseClass13(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13)
-      case CaseClass14(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14) =>
+      case CaseClass14(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14)
-      case CaseClass15(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15) =>
+      case CaseClass15(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14, f15 -> ext15)
-      case CaseClass16(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16) =>
+      case CaseClass16(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14, f15 -> ext15, f16 -> ext16)
-      case CaseClass17(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17) =>
+      case CaseClass17(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14, f15 -> ext15, f16 -> ext16, f17 -> ext17)
-      case CaseClass18(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18) =>
+      case CaseClass18(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14, f15 -> ext15, f16 -> ext16, f17 -> ext17, f18 -> ext18)
-      case CaseClass19(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, ext19) =>
+      case CaseClass19(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, ext19, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14, f15 -> ext15, f16 -> ext16, f17 -> ext17, f18 -> ext18, f19 -> ext19)
-      case CaseClass20(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, ext19, ext20) =>
+      case CaseClass20(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, ext19, ext20, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14, f15 -> ext15, f16 -> ext16, f17 -> ext17, f18 -> ext18, f19 -> ext19, f20 -> ext20)
-      case CaseClass21(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, ext19, ext20, ext21) =>
+      case CaseClass21(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, ext19, ext20, ext21, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14, f15 -> ext15, f16 -> ext16, f17 -> ext17, f18 -> ext18, f19 -> ext19, f20 -> ext20, f21 -> ext21)
-      case CaseClass22(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, ext19, ext20, ext21, ext22) =>
+      case CaseClass22(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, _, ext1, ext2, ext3, ext4, ext5, ext6, ext7, ext8, ext9, ext10, ext11, ext12, ext13, ext14, ext15, ext16, ext17, ext18, ext19, ext20, ext21, ext22, _) =>
         encodeCaseClass(value, f1 -> ext1, f2 -> ext2, f3 -> ext3, f4 -> ext4, f5 -> ext5, f6 -> ext6, f7 -> ext7, f8 -> ext8, f9 -> ext9, f10 -> ext10, f11 -> ext11, f12 -> ext12, f13 -> ext13, f14 -> ext14, f15 -> ext15, f16 -> ext16, f17 -> ext17, f18 -> ext18, f19 -> ext19, f20 -> ext20, f21 -> ext21, f22 -> ext22)
-      case GenericRecord(fieldSet) => encodeGenericRecord(value, fieldSet.toChunk)
-      case _: Fail[_]              => Chunk.empty
+      case GenericRecord(fieldSet, _) => encodeGenericRecord(value, fieldSet.toChunk)
+      case _: Fail[_]                 => Chunk.empty
     }
 
     private def encodePrimitive[A](standardType: StandardType[A], v: A): Chunk[Byte] = standardType match {
-      case StandardType.UnitType                  => Chunk.empty
-      case StandardType.StringType                => encodeString(v)
-      case StandardType.BoolType                  => encodeBoolean(v)
-      case StandardType.ShortType                 => encodeInt(v.toInt)
-      case StandardType.IntType                   => encodeInt(v)
-      case StandardType.LongType                  => encodeLong(v)
-      case StandardType.FloatType                 => encodeFloat(v)
-      case StandardType.DoubleType                => encodeDouble(v)
-      case StandardType.BinaryType                => encodeBinary(v)
-      case StandardType.CharType                  => encodeString(v.toString)
-      case StandardType.UUIDType                  => encodeUUID(v)
-      case StandardType.BigDecimalType            => encodeDecimal(v)
-      case StandardType.BigIntegerType            => encodeBigInteger(v)
-      case StandardType.DayOfWeekType             => encodeInt(v.ordinal())
-      case StandardType.Month                     => encodeInt(v.ordinal())
-      case StandardType.MonthDay                  => encode(PrimitiveStructures.monthDayStructure(), ListMap("month" -> v.getMonthValue(), "day" -> v.getDayOfMonth()))
-      case StandardType.Period                    => encode(PrimitiveStructures.periodStructure(), ListMap("years" -> v.getYears(), "months" -> v.getMonths(), "days" -> v.getDays()))
-      case StandardType.Year                      => encodeInt(v.getValue())
-      case StandardType.YearMonth                 => encode(PrimitiveStructures.yearMonthStructure(), ListMap("year" -> v.getYear, "month" -> v.getMonthValue))
-      case StandardType.ZoneId                    => encodeString(v.getId())
-      case StandardType.ZoneOffset                => encodeInt(v.getTotalSeconds())
-      case StandardType.Duration(_)               => encode(PrimitiveStructures.durationStructure(), ListMap[String, Any]("seconds" -> v.getSeconds(), "nanos" -> v.getNano()))
-      case StandardType.Instant(_)                => encodeLong(v.toEpochMilli())
-      case StandardType.LocalDate(formatter)      => encodeString(v.format(formatter))
-      case StandardType.LocalTime(formatter)      => encodeString(v.format(formatter))
-      case StandardType.LocalDateTime(formatter)  => encodeString(v.format(formatter))
-      case StandardType.OffsetTime(formatter)     => encodeString(v.format(formatter))
-      case StandardType.OffsetDateTime(formatter) => encodeString(v.format(formatter))
-      case StandardType.ZonedDateTime(formatter)  => encodeString(v.format(formatter))
+      case StandardType.UnitType                      => Chunk.empty
+      case StandardType.StringType                    => encodeString(v)
+      case StandardType.BoolType                      => encodeBoolean(v)
+      case StandardType.ShortType                     => encodeInt(v.toInt)
+      case StandardType.IntType                       => encodeInt(v)
+      case StandardType.LongType                      => encodeLong(v)
+      case StandardType.FloatType                     => encodeFloat(v)
+      case StandardType.DoubleType                    => encodeDouble(v)
+      case StandardType.BinaryType                    => encodeBinary(v)
+      case StandardType.CharType                      => encodeString(v.toString)
+      case StandardType.UUIDType                      => encodeUUID(v)
+      case StandardType.BigDecimalType                => encodeDecimal(v)
+      case StandardType.BigIntegerType                => encodeBigInteger(v)
+      case StandardType.DayOfWeekType                 => encodeInt(v.ordinal())
+      case StandardType.MonthType                     => encodeInt(v.ordinal())
+      case StandardType.MonthDayType                  => encode(PrimitiveStructures.monthDayStructure(), ListMap("month" -> v.getMonthValue(), "day" -> v.getDayOfMonth()))
+      case StandardType.PeriodType                    => encode(PrimitiveStructures.periodStructure(), ListMap("years" -> v.getYears(), "months" -> v.getMonths(), "days" -> v.getDays()))
+      case StandardType.YearType                      => encodeInt(v.getValue())
+      case StandardType.YearMonthType                 => encode(PrimitiveStructures.yearMonthStructure(), ListMap("year" -> v.getYear, "month" -> v.getMonthValue))
+      case StandardType.ZoneIdType                    => encodeString(v.getId())
+      case StandardType.ZoneOffsetType                => encodeInt(v.getTotalSeconds())
+      case StandardType.Duration(_)                   => encode(PrimitiveStructures.durationStructure(), ListMap[String, Any]("seconds" -> v.getSeconds(), "nanos" -> v.getNano()))
+      case StandardType.InstantType(_)                => encodeLong(v.toEpochMilli())
+      case StandardType.LocalDateType(formatter)      => encodeString(v.format(formatter))
+      case StandardType.LocalTimeType(formatter)      => encodeString(v.format(formatter))
+      case StandardType.LocalDateTimeType(formatter)  => encodeString(v.format(formatter))
+      case StandardType.OffsetTimeType(formatter)     => encodeString(v.format(formatter))
+      case StandardType.OffsetDateTimeType(formatter) => encodeString(v.format(formatter))
+      case StandardType.ZonedDateTimeType(formatter)  => encodeString(v.format(formatter))
     }
 
     def encodeInt(i: Int): Chunk[Byte] = {
@@ -389,106 +367,108 @@ object AvroCodec extends Codec {
 
     def decodePartical[A](schema: Schema[A], chunk: Chunk[Byte]): DecodeResult[A] =
       schema match {
-        case Sequence(schemaA, fromChunk, _) => decodeSequence(schemaA, chunk).map(fromChunk)
-        case Transform(codec, f, _)          => decodePartical(codec, chunk).map(f).absolve
-        case Primitive(standardType)         => decodePrimitive(standardType, chunk)
-        case Optional(codec)                 => decodeOptional(codec, chunk)
-        case Fail(message)                   => Failure(message)
-        case Tuple(left, right)              => decodeTuple(left, right, chunk)
-        case EitherSchema(left, right)       => decodeEither(left, right, chunk)
-        case lzy @ Lazy(_)                   => decodePartical(lzy.schema, chunk)
-        case Meta(_)                         => decodePartical(Schema[SchemaAst], chunk).map(_.toSchema)
-        case Enum1(c1) =>
+        case Sequence(schemaA, fromChunk, _, _)                => decodeSequence(schemaA, chunk).map(fromChunk)
+        case Schema.MapSchema(ks: Schema[k], vs: Schema[v], _) => decodePartical(Schema.Sequence(ks <*> vs, (c: Chunk[(k, v)]) => Map(c: _*), (m: Map[k, v]) => Chunk.fromIterable(m)), chunk) // TODO: tests
+        case Schema.SetSchema(schema: Schema[s], _)            => decodePartical(Schema.Sequence(schema, (c: Chunk[s]) => Set(c: _*), (m: Set[s]) => Chunk.fromIterable(m)), chunk) // TODO: tests
+        case Transform(codec, f, _, _)                         => decodePartical(codec, chunk).map(f).absolve
+        case Primitive(standardType, _)                        => decodePrimitive(standardType, chunk)
+        case Optional(codec, _)                                => decodeOptional(codec, chunk)
+        case Fail(message, _)                                  => Failure(message)
+        case Tuple(left, right, _)                             => decodeTuple(left, right, chunk)
+        case EitherSchema(left, right, _)                      => decodeEither(left, right, chunk)
+        case lzy @ Lazy(_)                                     => decodePartical(lzy.schema, chunk)
+        case Meta(_, _)                                        => decodePartical(Schema[SchemaAst], chunk).map(_.toSchema)
+        case Enum1(c1, _) =>
           enumDecoder(c1)(chunk)
-        case Enum2(c1, c2) =>
+        case Enum2(c1, c2, _) =>
           enumDecoder(c1, c2)(chunk)
-        case Enum3(c1, c2, c3) =>
+        case Enum3(c1, c2, c3, _) =>
           enumDecoder(c1, c2, c3)(chunk)
-        case Enum4(c1, c2, c3, c4) =>
+        case Enum4(c1, c2, c3, c4, _) =>
           enumDecoder(c1, c2, c3, c4)(chunk)
-        case Enum5(c1, c2, c3, c4, c5) =>
+        case Enum5(c1, c2, c3, c4, c5, _) =>
           enumDecoder(c1, c2, c3, c4, c5)(chunk)
-        case Enum6(c1, c2, c3, c4, c5, c6) =>
+        case Enum6(c1, c2, c3, c4, c5, c6, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6)(chunk)
-        case Enum7(c1, c2, c3, c4, c5, c6, c7) =>
+        case Enum7(c1, c2, c3, c4, c5, c6, c7, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7)(chunk)
-        case Enum8(c1, c2, c3, c4, c5, c6, c7, c8) =>
+        case Enum8(c1, c2, c3, c4, c5, c6, c7, c8, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8)(chunk)
-        case Enum9(c1, c2, c3, c4, c5, c6, c7, c8, c9) =>
+        case Enum9(c1, c2, c3, c4, c5, c6, c7, c8, c9, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9)(chunk)
-        case Enum10(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10) =>
+        case Enum10(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10)(chunk)
-        case Enum11(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11) =>
+        case Enum11(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11)(chunk)
-        case Enum12(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12) =>
+        case Enum12(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12)(chunk)
-        case Enum13(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13) =>
+        case Enum13(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13)(chunk)
-        case Enum14(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14) =>
+        case Enum14(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14)(chunk)
-        case Enum15(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15) =>
+        case Enum15(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15)(chunk)
-        case Enum16(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16) =>
+        case Enum16(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16)(chunk)
-        case Enum17(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17) =>
+        case Enum17(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17)(chunk)
-        case Enum18(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18) =>
+        case Enum18(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18)(chunk)
-        case Enum19(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19) =>
+        case Enum19(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19)(chunk)
-        case Enum20(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20) =>
+        case Enum20(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20)(chunk)
-        case Enum21(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21) =>
+        case Enum21(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21)(chunk)
-        case Enum22(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22) =>
+        case Enum22(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22, _) =>
           enumDecoder(c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c19, c20, c21, c22)(chunk)
-        case EnumN(caseSet) =>
+        case EnumN(caseSet, _) =>
           enumDecoder[A](caseSet.toSeq: _*)(chunk)
-        case GenericRecord(fieldSet) =>
+        case GenericRecord(fieldSet, _) =>
           recordDecoder(fieldSet.toChunk.toList, chunk, ListMap.empty)
-        case CaseClass1(_, f, construct, _) =>
+        case CaseClass1(f, construct, _, _) =>
           caseClass1Decoder(f, construct, chunk)
-        case CaseClass2(_, f1, f2, construct, _, _) =>
+        case CaseClass2(f1, f2, construct, _, _, _) =>
           caseClass2Decoder(f1, f2, construct, chunk)
-        case CaseClass3(_, f1, f2, f3, construct, _, _, _) =>
+        case CaseClass3(f1, f2, f3, construct, _, _, _, _) =>
           caseClass3Decoder(f1, f2, f3, construct, chunk)
-        case CaseClass4(_, f1, f2, f3, f4, construct, _, _, _, _) =>
+        case CaseClass4(f1, f2, f3, f4, construct, _, _, _, _, _) =>
           caseClass4Decoder(f1, f2, f3, f4, construct, chunk)
-        case CaseClass5(_, f1, f2, f3, f4, f5, construct, _, _, _, _, _) =>
+        case CaseClass5(f1, f2, f3, f4, f5, construct, _, _, _, _, _, _) =>
           caseClass5Decoder(f1, f2, f3, f4, f5, construct, chunk)
-        case CaseClass6(_, f1, f2, f3, f4, f5, f6, construct, _, _, _, _, _, _) =>
+        case CaseClass6(f1, f2, f3, f4, f5, f6, construct, _, _, _, _, _, _, _) =>
           caseClass6Decoder(f1, f2, f3, f4, f5, f6, construct, chunk)
-        case CaseClass7(_, f1, f2, f3, f4, f5, f6, f7, construct, _, _, _, _, _, _, _) =>
+        case CaseClass7(f1, f2, f3, f4, f5, f6, f7, construct, _, _, _, _, _, _, _, _) =>
           caseClass7Decoder(f1, f2, f3, f4, f5, f6, f7, construct, chunk)
-        case CaseClass8(_, f1, f2, f3, f4, f5, f6, f7, f8, construct, _, _, _, _, _, _, _, _) =>
+        case CaseClass8(f1, f2, f3, f4, f5, f6, f7, f8, construct, _, _, _, _, _, _, _, _, _) =>
           caseClass8Decoder(f1, f2, f3, f4, f5, f6, f7, f8, construct, chunk)
-        case CaseClass9(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, construct, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass9(f1, f2, f3, f4, f5, f6, f7, f8, f9, construct, _, _, _, _, _, _, _, _, _, _) =>
           caseClass9Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, construct, chunk)
-        case CaseClass10(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, construct, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass10(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, construct, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass10Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, construct, chunk)
-        case CaseClass11(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, construct, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass11(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, construct, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass11Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, construct, chunk)
-        case CaseClass12(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, construct, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass12(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, construct, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass12Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, construct, chunk)
-        case CaseClass13(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, construct, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass13(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass13Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, construct, chunk)
-        case CaseClass14(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass14(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass14Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, construct, chunk)
-        case CaseClass15(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass15(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass15Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, construct, chunk)
-        case CaseClass16(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass16(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass16Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, construct, chunk)
-        case CaseClass17(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass17(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass17Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, construct, chunk)
-        case CaseClass18(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass18(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass18Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, construct, chunk)
-        case CaseClass19(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass19(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass19Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, construct, chunk)
-        case CaseClass20(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass20(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass20Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, construct, chunk)
-        case CaseClass21(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass21(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass21Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, construct, chunk)
-        case CaseClass22(_, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
+        case CaseClass22(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, construct, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _) =>
           caseClass22Decoder(f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f18, f19, f20, f21, f22, construct, chunk)
       }
 
@@ -530,35 +510,35 @@ object AvroCodec extends Codec {
     }
 
     def decodePrimitive[A](standardType: StandardType[A], chunk: Chunk[Byte]): DecodeResult[A] = standardType match {
-      case UnitType                  => Success((), chunk)
-      case StringType                => decodeString(chunk)
-      case BoolType                  => decodeBoolean(chunk)
-      case ShortType                 => decodeInt(chunk).map(_.toShort)
-      case IntType                   => decodeInt(chunk)
-      case LongType                  => decodeLong(chunk)
-      case FloatType                 => decodeFloat(chunk)
-      case DoubleType                => decodeDouble(chunk)
-      case BinaryType                => decodeBinary(chunk)
-      case CharType                  => decodeChar(chunk)
-      case UUIDType                  => decodeUUID(chunk)
-      case BigDecimalType            => decodeBigDecimal(chunk)
-      case BigIntegerType            => decodeBigInteger(chunk)
-      case DayOfWeekType             => decodeDayOfWeek(chunk)
-      case Month                     => decodeMonth(chunk)
-      case MonthDay                  => decodeMonthDay(chunk)
-      case Period                    => decodePeriod(chunk)
-      case Year                      => decodeYear(chunk)
-      case YearMonth                 => decodeYearMonth(chunk)
-      case ZoneId                    => decodeZoneId(chunk)
-      case ZoneOffset                => decodeZoneOffset(chunk)
-      case Duration(_)               => decodeDuration(chunk)
-      case Instant(_)                => decodeInstant(chunk)
-      case LocalDate(formatter)      => decodeLocalDate(formatter, chunk)
-      case LocalTime(formatter)      => decodeLocalTime(formatter, chunk)
-      case LocalDateTime(formatter)  => decodeLocalDateTime(formatter, chunk)
-      case OffsetTime(formatter)     => decodeOffsetTime(formatter, chunk)
-      case OffsetDateTime(formatter) => decodeOffsetDateTime(formatter, chunk)
-      case ZonedDateTime(formatter)  => decodeZonedDateTime(formatter, chunk)
+      case StandardType.UnitType                      => Success((), chunk)
+      case StandardType.StringType                    => decodeString(chunk)
+      case StandardType.BoolType                      => decodeBoolean(chunk)
+      case StandardType.ShortType                     => decodeInt(chunk).map(_.toShort)
+      case StandardType.IntType                       => decodeInt(chunk)
+      case StandardType.LongType                      => decodeLong(chunk)
+      case StandardType.FloatType                     => decodeFloat(chunk)
+      case StandardType.DoubleType                    => decodeDouble(chunk)
+      case StandardType.BinaryType                    => decodeBinary(chunk)
+      case StandardType.CharType                      => decodeChar(chunk)
+      case StandardType.UUIDType                      => decodeUUID(chunk)
+      case StandardType.BigDecimalType                => decodeBigDecimal(chunk)
+      case StandardType.BigIntegerType                => decodeBigInteger(chunk)
+      case StandardType.DayOfWeekType                 => decodeDayOfWeek(chunk)
+      case StandardType.MonthType                     => decodeMonth(chunk)
+      case StandardType.MonthDayType                  => decodeMonthDay(chunk)
+      case StandardType.PeriodType                    => decodePeriod(chunk)
+      case StandardType.YearType                      => decodeYear(chunk)
+      case StandardType.YearMonthType                 => decodeYearMonth(chunk)
+      case StandardType.ZoneIdType                    => decodeZoneId(chunk)
+      case StandardType.ZoneOffsetType                => decodeZoneOffset(chunk)
+      case StandardType.Duration(_)                   => decodeDuration(chunk)
+      case StandardType.InstantType(_)                => decodeInstant(chunk)
+      case StandardType.LocalDateType(formatter)      => decodeLocalDate(formatter, chunk)
+      case StandardType.LocalTimeType(formatter)      => decodeLocalTime(formatter, chunk)
+      case StandardType.LocalDateTimeType(formatter)  => decodeLocalDateTime(formatter, chunk)
+      case StandardType.OffsetTimeType(formatter)     => decodeOffsetTime(formatter, chunk)
+      case StandardType.OffsetDateTimeType(formatter) => decodeOffsetDateTime(formatter, chunk)
+      case StandardType.ZonedDateTimeType(formatter)  => decodeZonedDateTime(formatter, chunk)
     }
 
     def decodeString(chunk: Chunk[Byte]): DecodeResult[String] =

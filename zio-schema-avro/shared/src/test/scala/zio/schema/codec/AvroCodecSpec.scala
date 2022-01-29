@@ -1,6 +1,5 @@
 package zio.schema.codec
 
-import zio.codec.AvroCodec
 import zio.schema.{ Schema, StandardType }
 import zio.stream.{ ZSink, ZStream }
 import zio.test.Assertion._
@@ -118,34 +117,35 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         testM("month") {
           import java.time.Month
           for {
-            jan <- encode(Schema.Primitive(StandardType.Month), Month.JANUARY).map(toHex(_))
-            may <- encode(Schema.Primitive(StandardType.Month), Month.MAY).map(toHex(_))
+            jan <- encode(Schema.Primitive(StandardType.MonthType), Month.JANUARY).map(toHex(_))
+            may <- encode(Schema.Primitive(StandardType.MonthType), Month.MAY).map(toHex(_))
           } yield assert(jan)(equalTo("00")) && assert(may)(equalTo("08"))
         },
         testM("monthDay") {
           import java.time.{ Month, MonthDay }
           for {
-            jan4    <- encode(Schema.Primitive(StandardType.MonthDay), MonthDay.of(Month.JANUARY, 4)).map(toHex(_))
-            april12 <- encode(Schema.Primitive(StandardType.MonthDay), MonthDay.of(Month.APRIL, 12)).map(toHex(_))
+            jan4    <- encode(Schema.Primitive(StandardType.MonthDayType), MonthDay.of(Month.JANUARY, 4)).map(toHex(_))
+            april12 <- encode(Schema.Primitive(StandardType.MonthDayType), MonthDay.of(Month.APRIL, 12)).map(toHex(_))
           } yield assert(jan4)(equalTo("0208")) && assert(april12)(equalTo("0818"))
         },
         testM("year") {
           import java.time.Year
           for {
-            bc <- encode(Schema.Primitive(StandardType.Year), Year.of(-4)).map(toHex(_))
-            ac <- encode(Schema.Primitive(StandardType.Year), Year.of(4)).map(toHex(_))
+            bc <- encode(Schema.Primitive(StandardType.YearType), Year.of(-4)).map(toHex(_))
+            ac <- encode(Schema.Primitive(StandardType.YearType), Year.of(4)).map(toHex(_))
           } yield assert(bc)(equalTo("07")) && assert(ac)(equalTo("08"))
         },
         testM("yearMonth") {
           import java.time.{ Month, YearMonth }
           for {
-            yearMonth <- encode(Schema.Primitive(StandardType.YearMonth), YearMonth.of(4, Month.OCTOBER)).map(toHex(_))
+            yearMonth <- encode(Schema.Primitive(StandardType.YearMonthType), YearMonth.of(4, Month.OCTOBER))
+                          .map(toHex(_))
           } yield assert(yearMonth)(equalTo("0814"))
         },
         testM("period") {
           import java.time.Period
           for {
-            period <- encode(Schema.Primitive(StandardType.Period), Period.of(1, 2, 3)).map(toHex(_))
+            period <- encode(Schema.Primitive(StandardType.PeriodType), Period.of(1, 2, 3)).map(toHex(_))
           } yield assert(period)(equalTo("020406"))
         },
         testM("unit") {
@@ -164,13 +164,14 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         testM("zoneId") {
           import java.time.ZoneId
           for {
-            encoded <- encode(Schema.Primitive(StandardType.ZoneId), ZoneId.of("CET")).map(toHex(_))
+            encoded <- encode(Schema.Primitive(StandardType.ZoneIdType), ZoneId.of("CET")).map(toHex(_))
           } yield assert(encoded)(equalTo("06434554"))
         },
         testM("zoneOffset") {
           import java.time.ZoneOffset
           for {
-            encoded <- encode(Schema.Primitive(StandardType.ZoneOffset), ZoneOffset.ofHoursMinutes(1, 30)).map(toHex(_))
+            encoded <- encode(Schema.Primitive(StandardType.ZoneOffsetType), ZoneOffset.ofHoursMinutes(1, 30))
+                        .map(toHex(_))
           } yield assert(encoded)(equalTo("B054"))
         },
         testM("duration") {
@@ -186,7 +187,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
           import java.time.format.DateTimeFormatter
           val formatter = DateTimeFormatter.ISO_DATE_TIME
           for {
-            encoded <- encode(Schema.Primitive(StandardType.Instant(formatter)), Instant.ofEpochMilli(12L))
+            encoded <- encode(Schema.Primitive(StandardType.InstantType(formatter)), Instant.ofEpochMilli(12L))
                         .map(toHex(_))
           } yield assert(encoded)(equalTo("18"))
         },
@@ -195,7 +196,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
           import java.time.format.DateTimeFormatter
           val formatter = DateTimeFormatter.ISO_LOCAL_DATE
           for {
-            encoded <- encode(Schema.Primitive(StandardType.LocalDate(formatter)), LocalDate.of(2020, 3, 12))
+            encoded <- encode(Schema.Primitive(StandardType.LocalDateType(formatter)), LocalDate.of(2020, 3, 12))
                         .map(toHex(_))
           } yield assert(encoded)(equalTo("14323032302D30332D3132"))
         },
@@ -205,7 +206,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
           val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
           for {
             encoded <- encode(
-                        Schema.Primitive(StandardType.LocalDateTime(formatter)),
+                        Schema.Primitive(StandardType.LocalDateTimeType(formatter)),
                         LocalDateTime.of(2020, 3, 12, 2, 3, 4)
                       ).map(toHex(_))
           } yield assert(encoded)(equalTo("26323032302D30332D31325430323A30333A3034"))
@@ -215,7 +216,8 @@ object AvroCodecSpec extends DefaultRunnableSpec {
           import java.time.format.DateTimeFormatter
           val formatter = DateTimeFormatter.ISO_LOCAL_TIME
           for {
-            encoded <- encode(Schema.Primitive(StandardType.LocalTime(formatter)), LocalTime.of(2, 3, 4)).map(toHex(_))
+            encoded <- encode(Schema.Primitive(StandardType.LocalTimeType(formatter)), LocalTime.of(2, 3, 4))
+                        .map(toHex(_))
           } yield assert(encoded)(equalTo("1030323A30333A3034"))
         },
         testM("offsetDateTime") {
@@ -224,7 +226,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
           val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
           for {
             encoded <- encode(
-                        Schema.Primitive(StandardType.OffsetDateTime(formatter)),
+                        Schema.Primitive(StandardType.OffsetDateTimeType(formatter)),
                         OffsetDateTime.of(LocalDateTime.of(2020, 3, 12, 2, 3, 4), ZoneOffset.ofHours(2))
                       ).map(toHex(_))
           } yield assert(encoded)(equalTo("32323032302D30332D31325430323A30333A30342B30323A3030"))
@@ -235,7 +237,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
           val formatter = DateTimeFormatter.ISO_OFFSET_TIME
           for {
             encoded <- encode(
-                        Schema.Primitive(StandardType.OffsetTime(formatter)),
+                        Schema.Primitive(StandardType.OffsetTimeType(formatter)),
                         OffsetTime.of(2, 3, 4, 0, ZoneOffset.ofHours(2))
                       ).map(toHex(_))
           } yield assert(encoded)(equalTo("1C30323A30333A30342B30323A3030"))
@@ -246,7 +248,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
           val formatter = DateTimeFormatter.ISO_ZONED_DATE_TIME
           for {
             encoded <- encode(
-                        Schema.Primitive(StandardType.ZonedDateTime(formatter)),
+                        Schema.Primitive(StandardType.ZonedDateTimeType(formatter)),
                         ZonedDateTime.of(LocalDateTime.of(2020, 3, 12, 2, 3, 4), ZoneId.of("UTC"))
                       ).map(toHex(_))
           } yield assert(encoded)(equalTo("32323032302D30332D31325430323A30333A30345A5B5554435D"))
@@ -351,15 +353,15 @@ object AvroCodecSpec extends DefaultRunnableSpec {
       testM("month") {
         import java.time.Month
         for {
-          jan <- decode(Schema.Primitive(StandardType.Month), "00")
-          may <- decode(Schema.Primitive(StandardType.Month), "08")
+          jan <- decode(Schema.Primitive(StandardType.MonthType), "00")
+          may <- decode(Schema.Primitive(StandardType.MonthType), "08")
         } yield assert(jan)(equalTo(Month.JANUARY)) && assert(may)(equalTo(Month.MAY))
       },
       testM("monthDay") {
         import java.time.{ Month, MonthDay }
         for {
-          jan4    <- decode(Schema.Primitive(StandardType.MonthDay), "0208")
-          april12 <- decode(Schema.Primitive(StandardType.MonthDay), "0818")
+          jan4    <- decode(Schema.Primitive(StandardType.MonthDayType), "0208")
+          april12 <- decode(Schema.Primitive(StandardType.MonthDayType), "0818")
         } yield assert(jan4)(equalTo(MonthDay.of(Month.JANUARY, 4))) && assert(april12)(
           equalTo(MonthDay.of(Month.APRIL, 12))
         )
@@ -367,20 +369,20 @@ object AvroCodecSpec extends DefaultRunnableSpec {
       testM("year") {
         import java.time.Year
         for {
-          bc <- decode(Schema.Primitive(StandardType.Year), "07")
-          ac <- decode(Schema.Primitive(StandardType.Year), "08")
+          bc <- decode(Schema.Primitive(StandardType.YearType), "07")
+          ac <- decode(Schema.Primitive(StandardType.YearType), "08")
         } yield assert(bc)(equalTo(Year.of(-4))) && assert(ac)(equalTo(Year.of(4)))
       },
       testM("yearMonth") {
         import java.time.{ Month, YearMonth }
         for {
-          yearMonth <- decode(Schema.Primitive(StandardType.YearMonth), "0814")
+          yearMonth <- decode(Schema.Primitive(StandardType.YearMonthType), "0814")
         } yield assert(yearMonth)(equalTo(YearMonth.of(4, Month.OCTOBER)))
       },
       testM("period") {
         import java.time.Period
         for {
-          period <- decode(Schema.Primitive(StandardType.Period), "020406")
+          period <- decode(Schema.Primitive(StandardType.PeriodType), "020406")
         } yield assert(period)(equalTo(Period.of(1, 2, 3)))
       },
       testM("unit") {
@@ -399,13 +401,13 @@ object AvroCodecSpec extends DefaultRunnableSpec {
       testM("zoneId") {
         import java.time.ZoneId
         for {
-          decoded <- decode(Schema.Primitive(StandardType.ZoneId), "06434554")
+          decoded <- decode(Schema.Primitive(StandardType.ZoneIdType), "06434554")
         } yield assert(decoded)(equalTo(ZoneId.of("CET")))
       },
       testM("zoneOffset") {
         import java.time.ZoneOffset
         for {
-          decoded <- decode(Schema.Primitive(StandardType.ZoneOffset), "B054")
+          decoded <- decode(Schema.Primitive(StandardType.ZoneOffsetType), "B054")
         } yield assert(decoded)(equalTo(ZoneOffset.ofHoursMinutes(1, 30)))
       },
       testM("duration") {
@@ -424,7 +426,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         import java.time.format.DateTimeFormatter
         val formatter = DateTimeFormatter.ISO_DATE_TIME
         for {
-          decoded <- decode(Schema.Primitive(StandardType.Instant(formatter)), "18")
+          decoded <- decode(Schema.Primitive(StandardType.InstantType(formatter)), "18")
         } yield assert(decoded)(equalTo(Instant.ofEpochMilli(12L)))
       },
       testM("localDate") {
@@ -432,7 +434,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         import java.time.format.DateTimeFormatter
         val formatter = DateTimeFormatter.ISO_LOCAL_DATE
         for {
-          decoded <- decode(Schema.Primitive(StandardType.LocalDate(formatter)), "14323032302D30332D3132")
+          decoded <- decode(Schema.Primitive(StandardType.LocalDateType(formatter)), "14323032302D30332D3132")
         } yield assert(decoded)(equalTo(LocalDate.of(2020, 3, 12)))
       },
       testM("localDateTime") {
@@ -441,7 +443,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
         for {
           decoded <- decode(
-                      Schema.Primitive(StandardType.LocalDateTime(formatter)),
+                      Schema.Primitive(StandardType.LocalDateTimeType(formatter)),
                       "26323032302D30332D31325430323A30333A3034"
                     )
         } yield assert(decoded)(equalTo(LocalDateTime.of(2020, 3, 12, 2, 3, 4)))
@@ -451,7 +453,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         import java.time.format.DateTimeFormatter
         val formatter = DateTimeFormatter.ISO_LOCAL_TIME
         for {
-          decoded <- decode(Schema.Primitive(StandardType.LocalTime(formatter)), "1030323A30333A3034")
+          decoded <- decode(Schema.Primitive(StandardType.LocalTimeType(formatter)), "1030323A30333A3034")
         } yield assert(decoded)(equalTo(LocalTime.of(2, 3, 4)))
       },
       testM("offsetDateTime") {
@@ -460,7 +462,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         val formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
         for {
           decoded <- decode(
-                      Schema.Primitive(StandardType.OffsetDateTime(formatter)),
+                      Schema.Primitive(StandardType.OffsetDateTimeType(formatter)),
                       "32323032302D30332D31325430323A30333A30342B30323A3030"
                     )
         } yield assert(decoded)(
@@ -473,7 +475,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         val formatter = DateTimeFormatter.ISO_OFFSET_TIME
         for {
           decoded <- decode(
-                      Schema.Primitive(StandardType.OffsetTime(formatter)),
+                      Schema.Primitive(StandardType.OffsetTimeType(formatter)),
                       "1C30323A30333A30342B30323A3030"
                     )
         } yield assert(decoded)(equalTo(OffsetTime.of(2, 3, 4, 0, ZoneOffset.ofHours(2))))
@@ -484,7 +486,7 @@ object AvroCodecSpec extends DefaultRunnableSpec {
         val formatter = DateTimeFormatter.ISO_ZONED_DATE_TIME
         for {
           decoded <- decode(
-                      Schema.Primitive(StandardType.ZonedDateTime(formatter)),
+                      Schema.Primitive(StandardType.ZonedDateTimeType(formatter)),
                       "32323032302D30332D31325430323A30333A30345A5B5554435D"
                     )
         } yield assert(decoded)(equalTo(ZonedDateTime.of(LocalDateTime.of(2020, 3, 12, 2, 3, 4), ZoneId.of("UTC"))))
